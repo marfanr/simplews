@@ -1,7 +1,6 @@
 package tls
 
 import (
-	"fmt"
 	"io"
 	"log"
 	"net"
@@ -10,6 +9,17 @@ import (
 
 type SimpleTlsContext struct {
 	io.ReadWriter
+	data []byte
+}
+
+func (ctx *SimpleTlsContext) Read(p []byte) (n int, err error) {
+	if len(ctx.data) == 0 {
+		return 0, io.EOF
+	}
+
+	n = copy(p, ctx.data)
+	ctx.data = ctx.data[n:]
+	return n, nil
 }
 
 type simpleTLShandler func(*SimpleTlsContext)
@@ -64,6 +74,7 @@ type SimpleTLSServerConnection struct {
 
 	handshakeFinished bool
 
+	ctx    *SimpleTlsContext
 	logger *SimpleTLSLogger
 }
 
@@ -102,6 +113,9 @@ func (s *SimpleTlsServer) handleConnection(con net.Conn) {
 		server: s,
 		con:    con,
 		logger: s.logger,
+		ctx: &SimpleTlsContext{
+			data: make([]byte, 0),
+		},
 	}
 
 	// first is record protocol
@@ -165,23 +179,23 @@ func (hs *SimpleTLSServerConnection) HandleApplicationData(data []byte) {
 		return
 	}
 
-	fmt.Printf("real hadnshake type %d\n", decoded.ContentType)
-
 	switch decoded.ContentType {
-	case 22:
+	case TLS_RECORD_HANDSHAKE:
 		{
 			hs.HandleTLSHandShake(decoded.data)
 			break
 		}
-	case 23:
+	case TLS_RECORD_APPLICATION_DATA:
 		{
-			// application data, will be implmented websocket
-			fmt.Println("Found Application Data")
-			fmt.Printf("%s\n", decoded.data)
+			// application data
+			hs.ctx.data = append(hs.ctx.data, decoded.data...)
+			for _, handle := range hs.server.handlers {
+				handle(hs.ctx)
+			}
 		}
 	default:
 		{
-			fmt.Printf("uknown handshake type %d\n", decoded.ContentType)
+			hs.logger.Errorf("uknown handshake type %d\n", decoded.ContentType)
 		}
 	}
 
