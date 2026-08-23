@@ -26,6 +26,8 @@ type SimpleTLSKeys struct {
 	clientHSWriteIV          []byte
 	clientAppWriteKey        []byte
 	clientAppWriteIV         []byte
+	serverAppWriteKey        []byte
+	serverAppWriteIV         []byte
 	finishedKey              []byte
 	masterSecret             []byte
 }
@@ -193,8 +195,6 @@ func (hs *SimpleTLSServerConnection) keyScheduleHandshake() {
 
 	hs.secrets.finishedKey = hs.expandLabel(h, hs.secrets.serverHandShakeTraffic, "finished", []byte{}, sha256.Size)
 
-	fmt.Printf("Client Write Key (for decryption): %x\n", hs.secrets.clientHSWriteKey)
-	fmt.Printf("Client Write IV: %x\n", hs.secrets.clientHSWriteIV)
 }
 
 func (hs *SimpleTLSServerConnection) keyScheduleApplication() {
@@ -210,11 +210,11 @@ func (hs *SimpleTLSServerConnection) keyScheduleApplication() {
 
 	hs.secrets.clientApplicationTraffic = hs.deriveKey(hs.secrets.masterSecret, "c ap traffic", hs.transcript)
 	hs.secrets.serverApplicationTraffic = hs.deriveKey(hs.secrets.masterSecret, "s ap traffic", hs.transcript)
+
 	hs.secrets.clientAppWriteKey = hs.expandLabel(sha256.New, hs.secrets.clientApplicationTraffic, "key", []byte{}, 16)
 	hs.secrets.clientAppWriteIV = hs.expandLabel(sha256.New, hs.secrets.clientApplicationTraffic, "iv", []byte{}, 12)
-
-	fmt.Printf("Client App Write Key (for decryption): %x\n", hs.secrets.clientAppWriteKey)
-	fmt.Printf("Client App Write IV: %x\n", hs.secrets.clientAppWriteIV)
+	hs.secrets.serverAppWriteKey = hs.expandLabel(sha256.New, hs.secrets.serverApplicationTraffic, "key", []byte{}, 16)
+	hs.secrets.serverAppWriteIV = hs.expandLabel(sha256.New, hs.secrets.serverApplicationTraffic, "iv", []byte{}, 12)
 
 	hs.clientAppSeq = 0
 	hs.serverAppSeq = 0
