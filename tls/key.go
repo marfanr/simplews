@@ -215,4 +215,7 @@ func (hs *SimpleTLSServerConnection) keyScheduleApplication() {
 
 	fmt.Printf("Client App Write Key (for decryption): %x\n", hs.secrets.clientAppWriteKey)
 	fmt.Printf("Client App Write IV: %x\n", hs.secrets.clientAppWriteIV)
+
+	hs.clientAppSeq = 0
+	hs.serverAppSeq = 0
 }

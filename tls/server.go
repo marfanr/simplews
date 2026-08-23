@@ -9,7 +9,8 @@ import (
 
 type SimpleTlsContext struct {
 	io.ReadWriter
-	data []byte
+	data       []byte
+	serverConn *SimpleTLSServerConnection
 }
 
 func (ctx *SimpleTlsContext) Read(p []byte) (n int, err error) {
@@ -20,6 +21,24 @@ func (ctx *SimpleTlsContext) Read(p []byte) (n int, err error) {
 	n = copy(p, ctx.data)
 	ctx.data = ctx.data[n:]
 	return n, nil
+}
+
+func (ctx *SimpleTlsContext) Write(p []byte) (n int, err error) {
+	securedData := seal(
+		p,
+		ctx.serverConn.secrets.clientAppWriteKey,
+		ctx.serverConn.secrets.clientAppWriteIV,
+		ctx.serverConn.serverAppSeq,
+	)
+	ctx.serverConn.serverAppSeq++
+
+	recordData := SimpleTLSRecordProtocol{
+		ContentType:         TLS_RECORD_APPLICATION_DATA,
+		LegacyRecordVersion: 0x0303,
+		recordLength:        uint16(len(securedData)),
+		data:                securedData,
+	}.Build()
+	return ctx.serverConn.con.Write(recordData)
 }
 
 type simpleTLShandler func(*SimpleTlsContext)
@@ -41,8 +60,6 @@ type keyExchange struct {
 	Length     uint16
 	Key        []byte
 }
-
-// type SimpleT
 
 // used for each connection
 type SimpleTLSServerConnection struct {
@@ -69,6 +86,7 @@ type SimpleTLSServerConnection struct {
 	serverHSSeq  uint64
 	clientHSSeq  uint64
 	clientAppSeq uint64
+	serverAppSeq uint64
 
 	secrets SimpleTLSKeys
 
@@ -117,6 +135,7 @@ func (s *SimpleTlsServer) handleConnection(con net.Conn) {
 			data: make([]byte, 0),
 		},
 	}
+	tlsCon.ctx.serverConn = &tlsCon
 
 	// first is record protocol
 	for {
