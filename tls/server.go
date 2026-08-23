@@ -1,6 +1,7 @@
 package tls
 
 import (
+	"fmt"
 	"io"
 	"log"
 	"net"
@@ -11,26 +12,34 @@ type SimpleTlsContext struct {
 	io.ReadWriter
 	data       []byte
 	serverConn *SimpleTLSServerConnection
+	dataCh     chan []byte
 }
 
 func (ctx *SimpleTlsContext) Read(p []byte) (n int, err error) {
 	if len(ctx.data) == 0 {
-		return 0, io.EOF
+		data, ok := <-ctx.dataCh
+		if !ok {
+			return 0, io.EOF
+		}
+
+		ctx.data = data
 	}
 
 	n = copy(p, ctx.data)
 	ctx.data = ctx.data[n:]
+
 	return n, nil
 }
 
 func (ctx *SimpleTlsContext) Write(p []byte) (n int, err error) {
+	inner := append(append([]byte{}, p...), 23)
 	securedData := seal(
-		p,
-		ctx.serverConn.secrets.clientAppWriteKey,
-		ctx.serverConn.secrets.clientAppWriteIV,
+		inner,
+		ctx.serverConn.secrets.serverAppWriteKey,
+		ctx.serverConn.secrets.serverAppWriteIV,
 		ctx.serverConn.serverAppSeq,
 	)
-	ctx.serverConn.serverAppSeq++
+	ctx.serverConn.serverAppSeq += 1
 
 	recordData := SimpleTLSRecordProtocol{
 		ContentType:         TLS_RECORD_APPLICATION_DATA,
@@ -38,6 +47,8 @@ func (ctx *SimpleTlsContext) Write(p []byte) (n int, err error) {
 		recordLength:        uint16(len(securedData)),
 		data:                securedData,
 	}.Build()
+
+	fmt.Printf("sended : %x\n", recordData)
 	return ctx.serverConn.con.Write(recordData)
 }
 
@@ -49,10 +60,11 @@ type SimpleTlsConfig struct {
 }
 
 type SimpleTlsServer struct {
-	listener net.Listener
-	handlers []simpleTLShandler
-	logger   *SimpleTLSLogger
-	config   SimpleTlsConfig
+	listener   net.Listener
+	handlers   []simpleTLShandler
+	logger     *SimpleTLSLogger
+	config     SimpleTlsConfig
+	handlerRun bool
 }
 
 type keyExchange struct {
@@ -111,6 +123,7 @@ func NewServer(listener net.Listener, config SimpleTlsConfig) SimpleTlsServer {
 // main loop fot tcp server (blocking)
 func (s *SimpleTlsServer) Serve() {
 	s.logger.infoLogger.Println("TLS Server running...")
+
 	for {
 		conn, err := s.listener.Accept()
 		if err != nil {
@@ -132,11 +145,15 @@ func (s *SimpleTlsServer) handleConnection(con net.Conn) {
 		con:    con,
 		logger: s.logger,
 		ctx: &SimpleTlsContext{
-			data: make([]byte, 0),
+			data:   make([]byte, 0),
+			dataCh: make(chan []byte, 1),
 		},
 	}
 	tlsCon.ctx.serverConn = &tlsCon
 
+	for _, handler := range s.handlers {
+		go handler(tlsCon.ctx)
+	}
 	// first is record protocol
 	for {
 		header := make([]byte, 5)
@@ -207,10 +224,14 @@ func (hs *SimpleTLSServerConnection) HandleApplicationData(data []byte) {
 	case TLS_RECORD_APPLICATION_DATA:
 		{
 			// application data
-			hs.ctx.data = append(hs.ctx.data, decoded.data...)
-			for _, handle := range hs.server.handlers {
-				handle(hs.ctx)
-			}
+			hs.ctx.dataCh <- decoded.data
+		}
+	case TLS_RECORD_ALERT:
+		{
+			level := decoded.data[0]
+			desc := decoded.data[1]
+			fmt.Printf("received alert level %d desc %d\n", level, desc)
+
 		}
 	default:
 		{
