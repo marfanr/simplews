@@ -10,10 +10,6 @@ import (
 	"github.com/marfanr/simplews/ws"
 )
 
-func exHandler(ctx *tls.SimpleTlsContext) {
-	ctx.Write([]byte("hello world"))
-}
-
 func main() {
 	listener, err := net.Listen("tcp", ":8080")
 	if err != nil {
@@ -24,10 +20,12 @@ func main() {
 	_ = ws.GLOBAL_WS_UUID
 
 	server := tls.NewServer(listener, tls.SimpleTlsConfig{
-		CertPath: "/etc/letsencrypt/live/git.voxiaos.web.id/cert.pem",
+		CertPath:    "/etc/letsencrypt/live/git.voxiaos.web.id/cert.pem",
 		PrivKeyPath: "/etc/letsencrypt/live/git.voxiaos.web.id/privkey.pem",
 	})
-	server.AddHandler(exHandler)
 
+	ws := ws.SimpleWebsocket{}
+
+	server.AddHandler(ws.Handler)
 	server.Serve()
 }
