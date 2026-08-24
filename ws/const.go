@@ -1,0 +1,15 @@
+package ws
+
+/*
+RFC 6455 1.3
+Globally Unique Identifier (GUID, [RFC4122])
+*/
+const GLOBAL_WS_UUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
+
+// Frame Opcode
+const SIMPLE_WS_CONTINUE_FRAME = 0
+const SIMPLE_WS_TEXT_FRAME = 1
+const SIMPLE_WS_BINARY_FRAME = 2
+const SIMPLE_WS_CONNECTION_CLOSE = 8
+const SIMPLE_WS_PING = 9
+const SIMPLE_WS_PONG = 10

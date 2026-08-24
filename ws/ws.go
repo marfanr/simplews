@@ -4,19 +4,26 @@ import (
 	"bufio"
 	"crypto/sha1"
 	b64 "encoding/base64"
+	"errors"
 	"fmt"
-	"io"
+	"slices"
 	"strings"
 
 	"github.com/marfanr/simplews/tls"
 )
 
-const GLOBAL_WS_UUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
+type SimpleWebSocketEvent struct {
+	event  string
+	handle func(ctx *SimpleWebSocketContext)
+}
 
 type SimpleWebsocket struct {
-	http HttpParser
-	done bool
+	http   HttpParser
+	done   bool
+	events []SimpleWebSocketEvent
 }
+
+var suppported_events = []string{"open", "message", "error", "close"}
 
 func (s *SimpleWebsocket) Handler(ctx *tls.SimpleTlsContext) {
 	reader := bufio.NewReader(ctx)
@@ -62,59 +69,32 @@ func (s *SimpleWebsocket) Handler(ctx *tls.SimpleTlsContext) {
 		s.done = true
 
 		fmt.Println("waiting for message")
+
 		// established
+		s.invoke("open")
 
-		header := make([]byte, 2)
 		for {
-			if _, err := io.ReadFull(reader, header); err != nil {
-				fmt.Println(err.Error())
-				break
-			}
+			parseWsFrame(reader)
+		}
+	}
+}
 
-			b0 := header[0]
-			b1 := header[1]
+func (s *SimpleWebsocket) On(event string, h func(*SimpleWebSocketContext)) error {
+	if !slices.Contains(suppported_events, event) {
+		return errors.New("not supported event")
+	}
+	s.events = append(s.events, SimpleWebSocketEvent{
+		event:  event,
+		handle: h,
+	})
+	return nil
+}
 
-			fin := b0&0x80 != 0
-			opcode := b0 & 0x0F
-			masked := b1&0x80 != 0
-			payloadLen := b1 & 0x7F
-
-			switch payloadLen {
-			case 127:
-				// available extend payload
-
-			}
-
-			mask := make([]byte, 4)
-			if masked {
-				if _, err := io.ReadFull(reader, mask[:]); err != nil {
-					fmt.Println(err.Error())
-					break
-				}
-			}
-
-			payload := make([]byte, payloadLen)
-			if _, err := io.ReadFull(reader, payload); err != nil {
-				fmt.Println(err.Error())
-				break
-			}
-
-			if masked {
-				for i := range payload {
-					payload[i] ^= mask[i%4]
-				}
-			}
-
-			fmt.Printf(
-				"FIN=%v OPCODE=%d MASK=%v LEN=%d\n",
-				fin,
-				opcode,
-				masked,
-				payloadLen,
-			)
-
-			fmt.Printf("payload %q\n", payload)
-
+func (s *SimpleWebsocket) invoke(event string) {
+	for _, v := range s.events {
+		if v.event == event {
+			// TODO:
+			// v.handle(nil)
 		}
 	}
 }

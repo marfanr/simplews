@@ -24,8 +24,11 @@ func main() {
 		PrivKeyPath: "/etc/letsencrypt/live/git.voxiaos.web.id/privkey.pem",
 	})
 
-	ws := ws.SimpleWebsocket{}
+	sws := ws.SimpleWebsocket{}
+	sws.On("connect", func(ctx *ws.SimpleWebSocketContext) {
 
-	server.AddHandler(ws.Handler)
+	})
+
+	server.AddHandler(sws.Handler)
 	server.Serve()
 }
