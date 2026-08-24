@@ -30,7 +30,7 @@ func parseWsFrame(reader *bufio.Reader) (s SimpleWsFrame, e error) {
 	}
 
 	b0 := header[0]
-	b1 := header[0]
+	b1 := header[1]
 
 	s.Fin = b0&0x80 != 0
 	s.Rsv1 = b0&0x40 != 0
@@ -39,6 +39,8 @@ func parseWsFrame(reader *bufio.Reader) (s SimpleWsFrame, e error) {
 	s.Opcode = b0 & 0x0F
 	s.Masked = b1&0x80 != 0
 	payloadLen := b1 & 0x7F
+
+	fmt.Printf("payload length : %d\n", payloadLen)
 
 	switch payloadLen {
 	case 126:
@@ -70,12 +72,19 @@ func parseWsFrame(reader *bufio.Reader) (s SimpleWsFrame, e error) {
 		}
 	}
 
-	payload := make([]byte, payloadLen)
+	payload := make([]byte, s.PayloadLength)
 	if _, err := io.ReadFull(reader, payload); err != nil {
 		return s, err
 	}
+	s.Payload = payload
+	if s.Masked {
+		for i := range s.Payload {
+			s.Payload[i] ^= mask[i%4]
+		}
+	}
 
 	fmt.Printf("FIN=%v opcode %d  MASK=%v Len : %d\n", s.Fin, s.Opcode, s.Masked, s.PayloadLength)
+	fmt.Printf("data %s\n", string(s.Payload))
 
 	return s, nil
 }
