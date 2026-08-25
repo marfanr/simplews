@@ -13,6 +13,7 @@ type SimpleTlsContext struct {
 	data       []byte
 	serverConn *SimpleTLSServerConnection
 	dataCh     chan []byte
+	endCon     chan bool
 }
 
 func (ctx *SimpleTlsContext) Read(p []byte) (n int, err error) {
@@ -50,6 +51,10 @@ func (ctx *SimpleTlsContext) Write(p []byte) (n int, err error) {
 
 	fmt.Printf("sended : %x\n", recordData)
 	return ctx.serverConn.con.Write(recordData)
+}
+
+func (ctx *SimpleTlsContext) Close() error {
+    return ctx.serverConn.con.Close()
 }
 
 type simpleTLShandler func(*SimpleTlsContext)
@@ -128,6 +133,7 @@ func (s *SimpleTlsServer) Serve() {
 		conn, err := s.listener.Accept()
 		if err != nil {
 			s.logger.errorLogger.Println(err.Error())
+			continue
 		}
 
 		go s.handleConnection(conn)
@@ -140,6 +146,8 @@ func (s *SimpleTlsServer) AddHandler(handler func(w *SimpleTlsContext)) {
 
 // must be running on go routine
 func (s *SimpleTlsServer) handleConnection(con net.Conn) {
+	defer con.Close()
+
 	tlsCon := SimpleTLSServerConnection{
 		server: s,
 		con:    con,
@@ -147,8 +155,10 @@ func (s *SimpleTlsServer) handleConnection(con net.Conn) {
 		ctx: &SimpleTlsContext{
 			data:   make([]byte, 0),
 			dataCh: make(chan []byte, 1),
+			endCon: make(chan bool, 1),
 		},
 	}
+	tlsCon.ctx.endCon <- false
 	tlsCon.ctx.serverConn = &tlsCon
 
 	for _, handler := range s.handlers {
@@ -176,7 +186,6 @@ func (s *SimpleTlsServer) handleConnection(con net.Conn) {
 			tlsCon.HandleTLSHandShake(fragment)
 		case TLS_RECORD_CHANGE_CHIPPER:
 			{
-				// TODO: not handleit
 				s.logger.Infof("Change chipper requested ...\n")
 				break
 			}
@@ -188,7 +197,7 @@ func (s *SimpleTlsServer) handleConnection(con net.Conn) {
 	}
 }
 
-func (hs *SimpleTLSServerConnection) HandleApplicationData(data []byte) {
+func (hs *SimpleTLSServerConnection) HandleApplicationData(data []byte) error {
 	var decoded SimpleTLSRecordProtocol
 	var err error
 	if !hs.handshakeFinished {
@@ -212,7 +221,7 @@ func (hs *SimpleTLSServerConnection) HandleApplicationData(data []byte) {
 
 	if err != nil {
 		hs.logger.Errorf("open tls record error %s\n", err.Error())
-		return
+		return err
 	}
 
 	switch decoded.ContentType {
@@ -223,7 +232,6 @@ func (hs *SimpleTLSServerConnection) HandleApplicationData(data []byte) {
 		}
 	case TLS_RECORD_APPLICATION_DATA:
 		{
-			// application data
 			hs.ctx.dataCh <- decoded.data
 		}
 	case TLS_RECORD_ALERT:
@@ -238,5 +246,6 @@ func (hs *SimpleTLSServerConnection) HandleApplicationData(data []byte) {
 			hs.logger.Errorf("uknown handshake type %d\n", decoded.ContentType)
 		}
 	}
+	return nil
 
 }
