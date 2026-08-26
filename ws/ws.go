@@ -21,11 +21,17 @@ type SimpleWebsocket struct {
 	http   HttpParser
 	done   bool
 	events []SimpleWebSocketEvent
+	ctx    *SimpleWebSocketContext
 }
 
 var suppported_events = []string{"open", "message", "error", "close"}
 
 func (s *SimpleWebsocket) Handler(ctx *tls.SimpleTlsContext) {
+	if s.ctx == nil {
+		s.ctx = &SimpleWebSocketContext{
+			tlsCtx: ctx,
+		}
+	}
 	reader := bufio.NewReader(ctx)
 	for {
 		line, err := reader.ReadString('\n')
@@ -74,7 +80,10 @@ func (s *SimpleWebsocket) Handler(ctx *tls.SimpleTlsContext) {
 		s.invoke("open")
 
 		for {
-			parseWsFrame(reader)
+			_, err := parseWsFrame(reader)
+			if err != nil {
+			}
+			// TODO: break if receive end
 		}
 	}
 }
@@ -93,8 +102,7 @@ func (s *SimpleWebsocket) On(event string, h func(*SimpleWebSocketContext)) erro
 func (s *SimpleWebsocket) invoke(event string) {
 	for _, v := range s.events {
 		if v.event == event {
-			// TODO:
-			// v.handle(nil)
+			v.handle(s.ctx)
 		}
 	}
 }

@@ -4,6 +4,7 @@ By Mohammad Arfan Nur Rahman
 package main
 
 import (
+	"fmt"
 	"net"
 
 	"github.com/marfanr/simplews/tls"
@@ -25,8 +26,10 @@ func main() {
 	})
 
 	sws := ws.SimpleWebsocket{}
-	sws.On("connect", func(ctx *ws.SimpleWebSocketContext) {
-
+	
+	sws.On("open", func(ctx *ws.SimpleWebSocketContext) {
+		fmt.Println("client connected")
+		ctx.Ping()
 	})
 
 	server.AddHandler(sws.Handler)

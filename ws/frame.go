@@ -88,3 +88,58 @@ func parseWsFrame(reader *bufio.Reader) (s SimpleWsFrame, e error) {
 
 	return s, nil
 }
+
+func (s SimpleWsFrame) Build() []byte {
+	d := make([]byte, 0, 16)
+	var first byte
+	if s.Fin {
+		first |= 1 << 7
+	}
+	if s.Rsv1 {
+		first |= 1 << 6
+	}
+	if s.Rsv2 {
+		first |= 1 << 5
+	}
+	if s.Rsv3 {
+		first |= 1 << 4
+	}
+	first |= s.Opcode & 0x0F
+
+	d = append(d, first)
+
+	var second byte
+	length := s.PayloadLength
+	switch {
+	case length <= 125:
+		second |= byte(length)
+		d = append(d, second)
+
+	case length <= 65535:
+		second |= 126
+		d = append(d, second)
+
+		d = append(d,
+			byte(length>>8),
+			byte(length),
+		)
+
+	default:
+		second |= 127
+		d = append(d, second)
+
+		d = append(d,
+			byte(length>>56),
+			byte(length>>48),
+			byte(length>>40),
+			byte(length>>32),
+			byte(length>>24),
+			byte(length>>16),
+			byte(length>>8),
+			byte(length),
+		)
+	}
+	d = append(d, s.Payload...)
+
+	return d
+}
