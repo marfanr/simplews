@@ -20,6 +20,8 @@ In the `ClientHello`, the client offers the supported cipher suites, protocol ve
 
 After receiving the `ClientHello`, the server will respond with multiple messages, starting with the `ServerHello`. In the `ServerHello`, the server will choose which TLS version to use, which cipher suite to use, which compression method to use, and send the key share. However, in this project, for now, it only supports `TLS_AES_128_GCM_SHA256` for the cipher suite and `X25519` for the key exchange algorithm.
 
+After that, now it is time to run the key schedule, which is detailed in RFC 8446 Section 7.1, because after sending the `ServerHello`, the next messages will be sent and received in encrypted form. In the first key schedule, we will get a key and IV for both the server and client, which are used for encrypting and decrypting messages.
+
 
 # How To Run
 first edit the main.go file in the example and replace the certificate and private key path with the paths to your own certificate and private key
