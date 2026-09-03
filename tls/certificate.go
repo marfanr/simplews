@@ -14,17 +14,25 @@ import (
 	"os"
 )
 
-func LoadPEMFile(path string) []byte {
+func LoadPEMFile(path string) [][]byte {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		panic(err)
 	}
 
-	p, _ := pem.Decode(data)
-	if p == nil {
-		panic("failed to decode PEM")
+	var certs [][]byte
+	for {
+		p, r := pem.Decode(data)
+		if p == nil {
+			break
+		}
+		if p.Type == "CERTIFICATE" {
+			certs = append(certs, p.Bytes)
+		}
+		data = r
 	}
-	return p.Bytes
+
+	return certs
 }
 
 func LoadPrivCertficateFile(path string) any {

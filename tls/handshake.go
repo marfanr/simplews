@@ -242,15 +242,23 @@ RFC 8446 4.4.2
 Certificate
 */
 func (hs *simpleTLSHandshake) SendCertificate() {
-	cert := LoadPEMFile(hs.serverConn.server.config.CertPath)
+	certs := LoadPEMFile(hs.serverConn.server.config.CertPath)
+	println("certs length:", len(certs))
+	if len(certs) == 0 {
+		hs.logger.Errorf("no certificate found\n")
+		panic("no certificate found")
+	}
+
+	var entries []CertificateEntry
+	for _, cert := range certs {
+		entries = append(entries, CertificateEntry{
+			Data:      cert,
+			Extension: nil,
+		})
+	}
 
 	cerData := (Certificate{
-		Entries: []CertificateEntry{
-			{
-				Data:      cert,
-				Extension: nil,
-			},
-		},
+		Entries: entries,
 		Context: nil,
 	}).build()
 

@@ -21,12 +21,12 @@ func main() {
 	_ = ws.GLOBAL_WS_UUID
 
 	server := tls.NewServer(listener, tls.SimpleTlsConfig{
-		CertPath:    "/etc/letsencrypt/live/git.voxiaos.web.id/cert.pem",
+		CertPath:    "/etc/letsencrypt/live/git.voxiaos.web.id/fullchain.pem",
 		PrivKeyPath: "/etc/letsencrypt/live/git.voxiaos.web.id/privkey.pem",
 	})
 
 	sws := ws.SimpleWebsocket{}
-	
+
 	sws.On("open", func(ctx *ws.SimpleWebSocketContext) {
 		fmt.Println("client connected")
 		ctx.Ping()
