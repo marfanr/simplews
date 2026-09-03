@@ -1,10 +1,22 @@
 # SimpleWs
 
+![screenshots][https://github.com/marfanr/simplews/blob/master/screenshot/ss.png?raw=true]
+![screenshots][https://github.com/marfanr/simplews/blob/master/screenshot/ss2.png?raw=true]
+
 Simple WebSocket and TLS implementation from scratch in Go.
 
 SimpleWs is a learning-focused networking project that implements WebSocket ([RFC 6455](https://www.rfc-editor.org/rfc/rfc6455)) and TLS 1.3 ([RFC 8446](https://www.rfc-editor.org/rfc/rfc8446)) starting directly from a TCP connection.
 
 The project was built to understand how modern network communication works by implementing the protocols step by step rather than relying entirely on existing high-level libraries.
+
+# How To Run
+first edit the main.go file in the example and replace the certificate and private key path with the paths to your own certificate and private key
+
+```
+cd example
+go build
+./example
+```
 
 ## Goals
 
