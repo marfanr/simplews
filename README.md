@@ -1,7 +1,9 @@
 # SimpleWs
 
-![screenshots][https://github.com/marfanr/simplews/blob/master/screenshot/ss.png?raw=true]
-![screenshots][https://github.com/marfanr/simplews/blob/master/screenshot/ss2.png?raw=true]
+<p align="center">
+  <img src="https://github.com/marfanr/simplews/blob/master/screenshot/ss.png?raw=true" width="48%" />
+  <img src="https://github.com/marfanr/simplews/blob/master/screenshot/ss2.png?raw=true" width="48%" />
+</p>
 
 Simple WebSocket and TLS implementation from scratch in Go.
 
